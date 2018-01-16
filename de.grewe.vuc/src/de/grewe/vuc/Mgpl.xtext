@@ -1,0 +1,103 @@
+grammar de.grewe.vuc.Mgpl with org.eclipse.xtext.common.Terminals
+
+generate mgpl "http://www.grewe.de/vuc/Mgpl"
+
+Prog:
+	'game' name=ID '(' attributeList?=Attrasslist? ')'
+	declarations+=Decl*
+	statements=Stmtblock
+	block=Block;
+
+Block:
+	Animblock | Eventblock;
+
+Animblock:
+	'animation' name=ID '(' type=Objtype objectName=ID ')' stmt=Stmtblock;
+
+Eventblock:
+	'on' key=Keystroke stmt=Stmtblock;
+
+Stmtblock:
+	{Stmtblock}'{'
+	statements+=Stmt*
+	'}';
+
+Stmt:
+	Ifstmt | Forstmt | Assstmt ';';
+
+Ifstmt:
+	'if' '(' expr=Expr ')' thenstmt=Stmtblock (else?='else' elsestmt=Stmtblock)?;
+
+Forstmt:
+	'for' '(' init=Assstmt ';' expr=Expr ';' ass=Assstmt ')' stmt=Stmtblock;
+
+Assstmt:
+	var=Var '=' expr=Expr;
+
+Decl:
+	(Vardecl | Objedecl) ';';
+
+Objedecl:
+	Objtype ID Objdecl2;
+
+Objdecl2:
+	{Objedecl2}
+	'(' attrs=Attrasslist ')' | '[' position=INT ']';
+
+Vardecl:
+	'int' ID Vardecl2;
+
+Vardecl2:
+	{Vardecl2}
+	init?=Init? | '[' position=INT ']';
+
+Init:
+	'=' Expr;
+
+Attrasslist:
+	{Attrasslist} attr+=Attrass (','  attr+=Attrasslist)?;
+
+Attrass:
+	name=ID '=' expr=Expr;
+
+Expr:
+	DisOp;
+
+MyExp:
+	{MyExp}
+	INT | var1=[Var] ('touches' var2=[Var])? | '(' Expr ')';
+
+UnExpr:
+	('-' | '!')? MyExp;
+
+MulExpr:
+	exp=UnExpr ('*' factor+=UnExpr | '/' dividend+=UnExpr)*;
+
+AddExpr:
+	exp=MulExpr ('+' summand+=MulExpr | '-' subtrahend+=MulExpr)*;
+
+RelOp:
+	exp=AddExpr ('==' equalExpr+=AddExpr | '<=' lethenExpr+=AddExpr | '<' lthenExpr+=AddExpr)*;
+
+KonOp:
+	op=RelOp ('&&' ops+=RelOp)*;
+
+DisOp:
+	op=KonOp ('||'  ops+=KonOp)*;
+
+Var:
+	{Var} name=ID assignment=Var2?;
+
+Var2:
+	{Var2}
+	'.' ID | '[' Expr ']' Var3?;
+
+Var3:
+	'.' ID;
+
+Objtype:
+	('rectangle' | 'triangle' | 'circle');
+
+Keystroke:
+	('space' | 'leftarrow' | 'rightarrow' | 'uparrow' | 'downarrow');
+
