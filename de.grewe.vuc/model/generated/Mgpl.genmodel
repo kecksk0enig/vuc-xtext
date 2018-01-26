@@ -49,10 +49,13 @@
       <genFeatures createChild="false" ecoreFeature="ecore:EAttribute Mgpl.ecore#//Objedecl2/position"/>
     </genClasses>
     <genClasses ecoreClass="Mgpl.ecore#//Vardecl2">
-      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute Mgpl.ecore#//Vardecl2/init"/>
+      <genFeatures property="None" children="true" createChild="true" ecoreFeature="ecore:EReference Mgpl.ecore#//Vardecl2/init"/>
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute Mgpl.ecore#//Vardecl2/array"/>
       <genFeatures createChild="false" ecoreFeature="ecore:EAttribute Mgpl.ecore#//Vardecl2/position"/>
     </genClasses>
-    <genClasses ecoreClass="Mgpl.ecore#//Init"/>
+    <genClasses ecoreClass="Mgpl.ecore#//Init">
+      <genFeatures property="None" children="true" createChild="true" ecoreFeature="ecore:EReference Mgpl.ecore#//Init/expr"/>
+    </genClasses>
     <genClasses ecoreClass="Mgpl.ecore#//Attrasslist">
       <genFeatures property="None" children="true" createChild="true" ecoreFeature="ecore:EReference Mgpl.ecore#//Attrasslist/attr"/>
     </genClasses>
@@ -63,9 +66,13 @@
     <genClasses ecoreClass="Mgpl.ecore#//MyExp">
       <genFeatures createChild="false" ecoreFeature="ecore:EAttribute Mgpl.ecore#//MyExp/num"/>
       <genFeatures property="None" children="true" createChild="true" ecoreFeature="ecore:EReference Mgpl.ecore#//MyExp/var1"/>
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute Mgpl.ecore#//MyExp/touches"/>
       <genFeatures property="None" children="true" createChild="true" ecoreFeature="ecore:EReference Mgpl.ecore#//MyExp/var2"/>
+      <genFeatures property="None" children="true" createChild="true" ecoreFeature="ecore:EReference Mgpl.ecore#//MyExp/expr"/>
     </genClasses>
     <genClasses ecoreClass="Mgpl.ecore#//UnExpr">
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute Mgpl.ecore#//UnExpr/minus"/>
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute Mgpl.ecore#//UnExpr/not"/>
       <genFeatures property="None" children="true" createChild="true" ecoreFeature="ecore:EReference Mgpl.ecore#//UnExpr/exp"/>
     </genClasses>
     <genClasses ecoreClass="Mgpl.ecore#//MulExpr">
@@ -98,6 +105,7 @@
     </genClasses>
     <genClasses ecoreClass="Mgpl.ecore#//Var2">
       <genFeatures createChild="false" ecoreFeature="ecore:EAttribute Mgpl.ecore#//Var2/bez"/>
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute Mgpl.ecore#//Var2/array"/>
       <genFeatures property="None" children="true" createChild="true" ecoreFeature="ecore:EReference Mgpl.ecore#//Var2/expr"/>
       <genFeatures property="None" children="true" createChild="true" ecoreFeature="ecore:EReference Mgpl.ecore#//Var2/assignment"/>
     </genClasses>

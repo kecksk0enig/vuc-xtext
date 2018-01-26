@@ -118,6 +118,8 @@ class MgplValidator extends AbstractMgplValidator {
 						case 'width': allowedAttributes.removeAll("w", "width")
 						case 'h',
 						case 'height': allowedAttributes.removeAll("h", "height")
+						case 'r',
+						case 'radius': allowedAttributes.removeAll("r", "radius")
 					}
 				} else {
 					error('disallowed attribute name', objedecl.decl, MgplPackage.Literals.OBJEDECL2__ATTRS);

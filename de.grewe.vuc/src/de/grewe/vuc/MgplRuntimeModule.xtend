@@ -3,9 +3,27 @@
  */
 package de.grewe.vuc
 
+import com.google.inject.Binder
+import org.eclipse.xtext.generator.IFilePostProcessor
+import org.eclipse.emf.common.util.URI
+import com.google.inject.Inject
 
 /**
  * Use this class to register components to be used at runtime / without the Equinox extension registry.
  */
 class MgplRuntimeModule extends AbstractMgplRuntimeModule {
+//	
+//	override configure(Binder binder) {
+//		super.configure(binder);
+//		binder.bind(IFilePostProcessor).to(JavaFormatterPostProcessor)
+//	}
+//	private static class JavaFormatterPostProcessor implements IFilePostProcessor{
+//		@Inject
+//		JavaBeau beautifier
+//		
+//		override postProcess(URI fileURI, CharSequence content) {
+//			
+//		}
+//		
+//	}
 }

@@ -56,10 +56,10 @@ Vardecl returns Identifiable:
 
 Vardecl2:
 	{Vardecl2}
-	init?=Init? | '[' position=INT ']';
+	init=Init? | array?='[' position=INT ']';
 
 Init:
-	'=' Expr;
+	'=' expr=Expr;
 
 Attrasslist:
 	{Attrasslist} attr+=Attrass (','  attr+=Attrass)*;
@@ -70,11 +70,11 @@ Attrass returns Attrass:
 
 MyExp:
 	{MyExp}
-	num=INT | var1=Var ('touches' var2=Var)? | '(' Expr ')';
+	num=INT | var1=Var (touches?='touches' var2=Var)? | '(' expr=Expr ')';
 
 UnExpr:
 	{UnExpr}
-	('-' | '!')? exp= MyExp;
+	(minus?='-' | not?='!')? exp= MyExp;
 
 MulExpr:
 	{MulExpr}
@@ -101,7 +101,7 @@ Var:
 
 Var2:
 	{Var2}
-	'.' bez=ID | '[' expr = Expr ']' assignment=Var3?;
+	'.' bez=ID | array?='[' expr = Expr ']' assignment=Var3?;
 Var3:
 	'.' bez=ID;
 

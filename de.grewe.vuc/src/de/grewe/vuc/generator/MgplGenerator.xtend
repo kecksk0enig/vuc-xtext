@@ -3,12 +3,31 @@
  */
 package de.grewe.vuc.generator
 
+import de.grewe.vuc.mgpl.AddExpr
+import de.grewe.vuc.mgpl.AnimParam
+import de.grewe.vuc.mgpl.Animblock
+import de.grewe.vuc.mgpl.Assstmt
+import de.grewe.vuc.mgpl.Attrasslist
+import de.grewe.vuc.mgpl.Expr
+import de.grewe.vuc.mgpl.Forstmt
+import de.grewe.vuc.mgpl.Identifiable
+import de.grewe.vuc.mgpl.Ifstmt
+import de.grewe.vuc.mgpl.KonOp
+import de.grewe.vuc.mgpl.MulExpr
+import de.grewe.vuc.mgpl.MyExp
+import de.grewe.vuc.mgpl.Objedecl
+import de.grewe.vuc.mgpl.Prog
+import de.grewe.vuc.mgpl.RelOp
+import de.grewe.vuc.mgpl.Stmtblock
+import de.grewe.vuc.mgpl.UnExpr
+import de.grewe.vuc.mgpl.Var
+import de.grewe.vuc.mgpl.Vardecl
 import org.eclipse.emf.ecore.resource.Resource
 import org.eclipse.xtext.generator.AbstractGenerator
 import org.eclipse.xtext.generator.IFileSystemAccess2
 import org.eclipse.xtext.generator.IGeneratorContext
-import de.grewe.vuc.mgpl.Prog
-import de.grewe.vuc.mgpl.Vardecl
+import de.grewe.vuc.mgpl.Block
+import de.grewe.vuc.mgpl.Eventblock
 
 /**
  * Generates code from your model files on save.
@@ -16,18 +35,18 @@ import de.grewe.vuc.mgpl.Vardecl
  * See https://www.eclipse.org/Xtext/documentation/303_runtime_concepts.html#code-generation
  */
 class MgplGenerator extends AbstractGenerator {
-
+	public static enum Types{Rectangle,Circle,Triangle,Game}
 	override void doGenerate(Resource resource, IFileSystemAccess2 fsa, IGeneratorContext context) {
 		val prog = resource.allContents.filter(Prog).head
 		val gameName = prog.name.toFirstUpper
-		for(decl=prog.declarations){}
+		prog.declarations.filter(Objedecl).forEach[generate];
+		prog.block.filter(Eventblock).forEach[generate];
 
-		fsa.generateFile(gameName + ".java", gameName.game)
+		fsa.generateFile(gameName + ".java", prog.generate)
 	}
 
 	private def game(String gameName) '''
-
-
+import java.util.function.Function;
 import java.util.Random;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -120,8 +139,286 @@ public class «gameName» extends Application {
 		gc.fillRect(playerOneXPos, playerOneYPos, PLAYER_WIDTH, PLAYER_HEIGHT);
 	}
 
-}
+
 '''
-	private def dispatch compile(Vardecl)'''
+
+private def dispatch generate(Prog it)'''
+import java.util.function.Consumer;
+	public class «getName(it)»{
+		«attributeList.renderConstructor(Types.Game)»
+		«FOR it: declarations»
+		«generate»
+		«ENDFOR»	
+		public void init(){
+			«stateMent.generate»
+		}	
+		«FOR it: block»
+				«generate»
+				«ENDFOR»
+	«generateGrphicalObjects»
+	}
+'''
+
+private def dispatch generate(Animblock it)'''
+	private void «name»(«animParam.type.toFirstUpper» «animParam.name»){
+		«stmt.generate»
+	}
+'''
+
+private def dispatch generate(Eventblock it)'''
+	private void on_«key»(){
+		«stmt.generate»
+	}
+'''
+
+private def String getName(Identifiable it){
+	switch it{
+		Prog :'''«name.toFirstUpper»'''
+		Vardecl :'''«name»'''
+		Objedecl :'''«name»'''
+		Animblock :'''(o)->{«name»(o);}'''
+		AnimParam :'''«name»'''
+		default: throw new IllegalStateException(class.simpleName)
+	}
+}
+	private def dispatch generate(Stmtblock it)'''
+		«FOR stmt : statements»
+			«stmt.generate»;
+		«ENDFOR»
 	'''
+	
+	private def dispatch generate(Ifstmt it)'''
+		if(«expr.generate»){
+			«thenstmt.generate»
+		}«IF ^else»
+		else{
+			«elsestmt.generate»
+		}
+		«ENDIF»
+	'''
+	
+	private def dispatch generate(Forstmt it)'''
+		for(«init.generate»;«expr.generate»;«ass.generate»){
+			«stmt.generate»
+		}
+	'''
+	
+	private def dispatch generate(Var it)'''
+		«name.name»
+		«IF assignment!=null»
+			«IF assignment.array»
+				[«assignment.expr.generate»]
+				«IF assignment.assignment!=null»
+					.«assignment.assignment.bez»
+				«ENDIF»
+			«ELSE»
+				.«assignment.bez»
+			«ENDIF»
+		«ENDIF»
+	'''
+	
+	private def dispatch generate(Assstmt it)'''
+		«^var.generate» = «expr.generate» «IF  (^var.generate.toString).contains('visible')» !=0«ENDIF»
+	'''
+
+	private def dispatch generate(Vardecl it) {
+	'''
+			«val position =decl.position»
+			«val init=decl.init»
+			
+			«IF decl.array»int[] «name» = new int[«position»];
+			«ELSE»
+				int «name»«IF init!=null» = «generate(init.expr)»«ENDIF»;
+			«ENDIF»
+		'''
+
+	}
+
+	private def  dispatch generate(Objedecl it) 
+'''
+	 «IF decl.attrs==null»
+	 	«type.toFirstUpper»[] «name» = new «type.toFirstUpper»[«decl.position»];
+	 «ELSE»
+	 	«type.toFirstUpper» «name» = new «type.toFirstUpper»(«decl.attrs.renderConstructor(Enum.valueOf(Types, type.toFirstUpper))»);
+	 «ENDIF»
+'''
+
+private  def String renderConstructor(Attrasslist attrasslist, Types flag){
+	var String width="0"
+	var String height="0"
+	var String x="0"
+	var String y="0"
+	var String radius="0"
+	var String visible="true"
+	var String animationBlock="null"
+	var String speed="50"
+	
+	for(attr : attrasslist.attr){
+		switch attr.name{
+			case "width",
+			case "w":width=generate(attr.expr).toString
+			case "height",
+			case "h":height=generate(attr.expr).toString
+			case "x":x=generate(attr.expr).toString
+			case "y": y=generate(attr.expr).toString
+			case "r",
+			case "radius":radius=generate(attr.expr).toString
+			case "visible": visible= "("+generate(attr.expr) +"!=0)"
+			case "animation_block": animationBlock= '(o)->{'+attr.expr.generate.toString+'(o);}'
+			case "speed": speed= attr.expr.generate.toString
+			default : throw new IllegalStateException("badumtss")
+			}
+	}
+	switch flag{
+		case Circle:'''«x»,«y»,«visible»,«animationBlock»,«radius»'''
+		case Triangle:'''«x»,«y»,«visible»,«animationBlock»,«height»,«width»'''
+		case Rectangle:'''«x»,«y»,«visible»,«animationBlock»,«height»,«width»'''
+		case Game:'''
+		public static int x=«x»;
+		
+		public static int y=«y»;
+		public static int width=«width»;
+		public static int height=«height»;
+		public static int speed=«speed»;
+		public static int w=width;
+		public static int h=height;
+		
+		'''
+		default: throw new IllegalStateException("WRONG TYPE")
+	}
+}	
+
+
+
+private def dispatch generate(Expr it) '''
+		«generate(op)»
+		«IF ops?.head!=null»
+			||«FOR it: ops SEPARATOR "||"» «generate(it)»«ENDFOR» 
+		«ENDIF»
+	'''
+
+private def
+
+dispatch generate(KonOp it) '''
+		«generate(op)»
+		«IF ops?.head!=null»
+			&&«FOR it: ops SEPARATOR "&&"» «generate(it)»«ENDFOR» 
+		«ENDIF»
+	'''
+
+private def
+
+dispatch generate(RelOp it) '''
+		«generate(exp)»
+		«IF equalExpr?.head!=null»
+			==«FOR it: equalExpr SEPARATOR "=="» «generate(it)»«ENDFOR» 
+		«ENDIF»
+		«IF lethenExpr?.head!=null»
+			<=«FOR it: lethenExpr SEPARATOR "<="» «generate(it)»«ENDFOR» 
+		«ENDIF»
+		«IF lthenExpr?.head!=null»
+			<«FOR it: lthenExpr SEPARATOR "<"» «generate(it)»«ENDFOR» 
+		«ENDIF»
+	'''
+
+private def
+
+dispatch generate(AddExpr it) '''
+		«generate(exp)»
+		«IF summand?.head!=null»
+			+ «FOR it: summand SEPARATOR "+"» «generate(it)»«ENDFOR» 
+				«ENDIF»
+				«IF subtrahend?.head!=null»
+			- «FOR it: subtrahend SEPARATOR "-"» «generate(it)»«ENDFOR» 
+				«ENDIF»
+	'''
+
+private def
+
+dispatch generate(MulExpr it) '''
+		«generate(exp)»
+		«IF factor?.head!=null»
+			* «FOR it: factor SEPARATOR "*"» «generate(it)»«ENDFOR» 
+				«ENDIF»
+				«IF dividend?.head!=null»
+			/ «FOR it: dividend SEPARATOR "-"» «generate(it)»«ENDFOR» 
+				«ENDIF»
+	'''
+
+private def
+
+dispatch generate(UnExpr it) '''
+	«IF minus»-
+	«ELSEIF not»!
+	«ENDIF»«generate(exp)»
+	'''
+
+private def
+
+dispatch generate(MyExp it) '''
+	«IF var1 != null»
+		«IF touches»«var1.name.name».touches(«var2.name.name»)
+			«ELSE» «var1.generate»
+		«ENDIF»
+	«ELSEIF expr!=null»
+	(«generate(expr)»)
+	«ELSE»«num»
+	«ENDIF»
+	'''
+
+private def String generateGrphicalObjects() '''
+	private static abstract class GO <X>{
+	
+			protected GO(int x, int y, boolean visible, Consumer<X> animblock) {
+				this.x = x;
+				this.y = y;
+				this.visible = visible;
+				this.animation_block = animblock;
+			}
+	
+			int x, y;
+			boolean visible;
+			Consumer<X> animation_block;
+	
+			public <Y extends GO> boolean touches(Y other) {
+				return false;
+			}
+			public <Y extends GO> boolean touches(Y[] other) {
+							return false;
+						}
+			public void animate(){
+				animation_block.accept((X) this);
+			}
+		}
+	
+		private static final class Rectangle extends GO<Rectangle> {
+			int height, width,h,w;
+			protected Rectangle(int x, int y, boolean visible, Consumer<Rectangle> animblock,int height,int width){
+				super(x,y,visible,animblock);
+				this.height=height;
+				this.width=width;
+				h=height;
+				w=width;
+			}
+		}
+			
+		private static final class Circle extends GO<Circle> {
+			int radius,r;
+			protected Circle(int x, int y, boolean visible, Consumer<Circle> animblock,int radius){
+			super(x,y,visible,animblock);
+			this.radius=radius;
+			r=radius;
+			}
+		}
+			private static final class Triangle extends GO<Triangle> {
+				int height, width,h,w;
+					protected Triangle(int x, int y, boolean visible, Consumer<Triangle> animblock,int height,int width){
+					super(x,y,visible,animblock);
+					this.height=height;
+					this.width=width;
+					h=height;
+					w=width;
+					}
+				}
+		'''
 }
