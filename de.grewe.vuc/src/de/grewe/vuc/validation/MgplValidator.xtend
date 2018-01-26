@@ -3,17 +3,29 @@
  */
 package de.grewe.vuc.validation
 
-import org.eclipse.xtext.validation.Check
+import de.grewe.vuc.mgpl.AnimParam
+import de.grewe.vuc.mgpl.Animblock
+import de.grewe.vuc.mgpl.Assstmt
+import de.grewe.vuc.mgpl.Attrass
 import de.grewe.vuc.mgpl.MgplPackage
+import de.grewe.vuc.mgpl.MyExp
+import de.grewe.vuc.mgpl.Objedecl
+import de.grewe.vuc.mgpl.Objedecl2
+import de.grewe.vuc.mgpl.Prog
+import org.eclipse.xtext.validation.Check
 
 /**
  * This class contains custom validation rules. 
- *
+ * 
  * See https://www.eclipse.org/Xtext/documentation/303_runtime_concepts.html#validation
  */
 class MgplValidator extends AbstractMgplValidator {
-	
-//  public static val INVALID_NAME = 'invalidName'
+
+	static val GAME_ATTRIBUTES = #{"x", "y", "h", "height", "w", "width", "speed"};
+	static val RECTANGLE_TRIANGLE_ATTRIBUTES = #{"x", "y", "h", "height", "w", "width", "visible", "animation_block"};
+	static val CIRLCE_ATTRIBUTES = #{"x", "y", "r", "radius", "visible", "animation_block"};
+
+	// public static val INVALID_NAME = 'invalidName'
 //
 //	@Check
 //	def checkGreetingStartsWithCapital(Greeting greeting) {
@@ -23,5 +35,95 @@ class MgplValidator extends AbstractMgplValidator {
 //					INVALID_NAME)
 //		}
 //	}
-	
+	@Check
+	def checkAnimationBlockIsValidType(Assstmt variable) {
+		var type = variable.^var.name;
+		if (type instanceof Objedecl) {
+			if (variable.^var.assignment.bez == 'animation_block') {
+				val expr = variable.expr;
+				if (expr instanceof MyExp) {
+					val animBlock = variable.expr.op.op.exp.exp.exp.exp.var1.name;
+					if (animBlock instanceof Animblock) {
+						if (animBlock.animParam.type != (type.type))
+							error('type should be same', variable, null);
+					}
+				}
+			} else if (variable.^var.assignment.assignment.bez == 'animation_block') {
+				val animBlock = variable.expr.op.op.exp.exp.exp.exp.var1.name;
+				if (animBlock instanceof Animblock) {
+					if (type.type != animBlock.animParam.type)
+						error('type should be same', variable, null);
+				} else {
+					error('type is not an animblock', variable, null);
+				}
+
+			}
+		}
+	}
+
+	@Check
+	def checkTouchingVars(MyExp variable) {
+		if (variable.var1 != null && variable.var2 != null) {
+
+			if ((!(variable.var1.name instanceof Objedecl) && !(variable.var1.name instanceof AnimParam)) ||
+				( !(variable.var2.name instanceof Objedecl) && !(variable.var2.name instanceof AnimParam)))
+				error('touching variables must be graphical objects', variable, null);
+		}
+	}
+
+	@Check
+	def checkProgrammAttributes(Prog prog) {
+		val allowedAttributes = newHashSet()
+		allowedAttributes.addAll(GAME_ATTRIBUTES)
+		if (prog.attributeList != null) {
+			for (attr : prog.attributeList.attr) {
+				if (allowedAttributes.remove((attr as Attrass).name)) {
+					switch (attr as Attrass).name {
+						case 'w',
+						case 'width':
+							allowedAttributes.removeAll("w", "width")
+						case 'h',
+						case 'height':
+							allowedAttributes.removeAll("h", "height")
+						case 'speed': {
+							val speedValue = (attr as Attrass).expr.op.op.exp.exp.exp.exp.num
+							if (speedValue < 0 || speedValue > 100)
+								error('disallowed attribute value  speed must be between 0 and 100', prog,
+									MgplPackage.Literals.PROG__ATTRIBUTE_LIST);
+						}
+					}
+				} else {
+					error('disallowed attribute name', prog, MgplPackage.Literals.PROG__ATTRIBUTE_LIST);
+				}
+			}
+		}
+	}
+
+	@Check
+	def checkObjectDeclarationAttributess(Objedecl objedecl) {
+		val allowedAttributes = newHashSet()
+		if (objedecl.decl != null) {
+			if (objedecl.type == 'circle') {
+				allowedAttributes.addAll(CIRLCE_ATTRIBUTES);
+			} else {
+				allowedAttributes.addAll(RECTANGLE_TRIANGLE_ATTRIBUTES);
+			}
+
+			val attributeList = (objedecl.decl as Objedecl2).attrs
+			if(attributeList ==null) return;
+			for (attr : attributeList.attr) {
+				if (allowedAttributes.remove((attr as Attrass).name)) {
+					switch (attr as Attrass).name {
+						case 'w',
+						case 'width': allowedAttributes.removeAll("w", "width")
+						case 'h',
+						case 'height': allowedAttributes.removeAll("h", "height")
+					}
+				} else {
+					error('disallowed attribute name', objedecl.decl, MgplPackage.Literals.OBJEDECL2__ATTRS);
+				}
+			}
+		}
+	}
+
 }

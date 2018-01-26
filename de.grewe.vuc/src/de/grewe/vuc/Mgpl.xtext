@@ -3,19 +3,23 @@ grammar de.grewe.vuc.Mgpl with org.eclipse.xtext.common.Terminals
 generate mgpl "http://www.grewe.de/vuc/Mgpl"
 
 Prog:
-	'game' name=ID '(' attributeList?=Attrasslist? ')'
+	'game' name=ID '(' attributeList=Attrasslist? ')'
 	declarations+=Decl*
-	statements=Stmtblock
-	block=Block;
+	stateMent=Stmtblock
+	block+=Block*;
 
 Block:
 	Animblock | Eventblock;
 
-Animblock:
-	'animation' name=ID '(' type=Objtype objectName=ID ')' stmt=Stmtblock;
+Animblock returns Identifiable:
+	{Animblock}
+	'animation' name=ID '(' animParam=AnimParam ')' stmt=Stmtblock;
+AnimParam:
+	type=OBJECTTYPE name=ID 
+;
 
 Eventblock:
-	'on' key=Keystroke stmt=Stmtblock;
+	'on' key=KEYSTROKE stmt=Stmtblock;
 
 Stmtblock:
 	{Stmtblock}'{'
@@ -31,21 +35,24 @@ Ifstmt:
 Forstmt:
 	'for' '(' init=Assstmt ';' expr=Expr ';' ass=Assstmt ')' stmt=Stmtblock;
 
-Assstmt:
+Assstmt returns Identifiable:
+	{Assstmt}
 	var=Var '=' expr=Expr;
 
-Decl:
+Decl returns Identifiable:
 	(Vardecl | Objedecl) ';';
 
 Objedecl:
-	Objtype ID Objdecl2;
+	{Objedecl}
+	type=OBJECTTYPE name=ID decl=Objedecl2;
 
-Objdecl2:
+Objedecl2:
 	{Objedecl2}
 	'(' attrs=Attrasslist ')' | '[' position=INT ']';
 
-Vardecl:
-	'int' ID Vardecl2;
+Vardecl returns Identifiable:
+	{Vardecl}
+	'int' name=ID decl=Vardecl2;
 
 Vardecl2:
 	{Vardecl2}
@@ -55,49 +62,56 @@ Init:
 	'=' Expr;
 
 Attrasslist:
-	{Attrasslist} attr+=Attrass (','  attr+=Attrasslist)?;
+	{Attrasslist} attr+=Attrass (','  attr+=Attrass)*;
 
-Attrass:
+Attrass returns Attrass:
 	name=ID '=' expr=Expr;
 
-Expr:
-	DisOp;
 
 MyExp:
 	{MyExp}
-	INT | var1=[Var] ('touches' var2=[Var])? | '(' Expr ')';
+	num=INT | var1=Var ('touches' var2=Var)? | '(' Expr ')';
 
 UnExpr:
-	('-' | '!')? MyExp;
+	{UnExpr}
+	('-' | '!')? exp= MyExp;
 
 MulExpr:
+	{MulExpr}
 	exp=UnExpr ('*' factor+=UnExpr | '/' dividend+=UnExpr)*;
 
 AddExpr:
+	{AddExpr}
 	exp=MulExpr ('+' summand+=MulExpr | '-' subtrahend+=MulExpr)*;
 
 RelOp:
+	{RelOp}
 	exp=AddExpr ('==' equalExpr+=AddExpr | '<=' lethenExpr+=AddExpr | '<' lthenExpr+=AddExpr)*;
 
 KonOp:
+	{KonOp}
 	op=RelOp ('&&' ops+=RelOp)*;
 
-DisOp:
+Expr:
+	{Expr}
 	op=KonOp ('||'  ops+=KonOp)*;
 
 Var:
-	{Var} name=ID assignment=Var2?;
+	{Var} name=[Identifiable] assignment=Var2?;
 
 Var2:
 	{Var2}
-	'.' ID | '[' Expr ']' Var3?;
-
+	'.' bez=ID | '[' expr = Expr ']' assignment=Var3?;
 Var3:
-	'.' ID;
+	'.' bez=ID;
 
-Objtype:
+terminal OBJECTTYPE:
 	('rectangle' | 'triangle' | 'circle');
 
-Keystroke:
+terminal KEYSTROKE:
 	('space' | 'leftarrow' | 'rightarrow' | 'uparrow' | 'downarrow');
+	
+Identifiable:
+	Prog|Decl|Animblock|AnimParam
+;
 
