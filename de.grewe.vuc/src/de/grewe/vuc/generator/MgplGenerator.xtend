@@ -8,6 +8,7 @@ import de.grewe.vuc.mgpl.AnimParam
 import de.grewe.vuc.mgpl.Animblock
 import de.grewe.vuc.mgpl.Assstmt
 import de.grewe.vuc.mgpl.Attrasslist
+import de.grewe.vuc.mgpl.Eventblock
 import de.grewe.vuc.mgpl.Expr
 import de.grewe.vuc.mgpl.Forstmt
 import de.grewe.vuc.mgpl.Identifiable
@@ -22,12 +23,11 @@ import de.grewe.vuc.mgpl.Stmtblock
 import de.grewe.vuc.mgpl.UnExpr
 import de.grewe.vuc.mgpl.Var
 import de.grewe.vuc.mgpl.Vardecl
+import java.time.LocalDateTime
 import org.eclipse.emf.ecore.resource.Resource
 import org.eclipse.xtext.generator.AbstractGenerator
 import org.eclipse.xtext.generator.IFileSystemAccess2
 import org.eclipse.xtext.generator.IGeneratorContext
-import de.grewe.vuc.mgpl.Block
-import de.grewe.vuc.mgpl.Eventblock
 
 /**
  * Generates code from your model files on save.
@@ -35,22 +35,201 @@ import de.grewe.vuc.mgpl.Eventblock
  * See https://www.eclipse.org/Xtext/documentation/303_runtime_concepts.html#code-generation
  */
 class MgplGenerator extends AbstractGenerator {
-	public static enum Types{Rectangle,Circle,Triangle,Game}
+	public static enum Types {
+		Rectangle,
+		Circle,
+		Triangle,
+		Game
+	}
+
 	override void doGenerate(Resource resource, IFileSystemAccess2 fsa, IGeneratorContext context) {
 		val prog = resource.allContents.filter(Prog).head
 		val gameName = prog.name.toFirstUpper
-		prog.declarations.filter(Objedecl).forEach[generate];
-		prog.block.filter(Eventblock).forEach[generate];
-
+		fsa.generateFile("prototype/Game.java", generatePrototype)
 		fsa.generateFile(gameName + ".java", prog.generate)
 	}
 
+	private def generatePrototype() '''
+package prototype;
 
-private def dispatch generate(Prog it)'''
-import java.util.function.Consumer;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.function.Consumer;
 
+import javafx.application.Application;
+import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Shape;
+
+/**
+ * Abstract base class of all MGPL based games.
+ * 
+ * @author Benedikt Maus 170420
+ * @author David Hüttner 161633
+ * @author Hendrik Grewe 137826
+ **/
+
+public abstract class Game extends Application {
+	protected static final Set<GO<?>> GRAPHICAL_OBJECTS = new HashSet<GO<?>>();
+
+	protected void on_leftarrow() {
+	}
+
+	protected void on_rightarrow() {
+	}
+
+	protected void on_uparrow() {
+	}
+
+	protected void on_downarrow() {
+	}
+
+	protected void on_space() {
+	}
+
+	protected void handleKeyEvent(KeyEvent e) {
+		switch (e.getCode()) {
+		case LEFT:
+			on_leftarrow();
+			break;
+		case RIGHT:
+			on_rightarrow();
+			break;
+		case UP:
+			on_uparrow();
+			break;
+		case DOWN:
+			on_downarrow();
+			break;
+		case SPACE:
+			on_space();
+			break;
+		default:
+			System.out.println("No Handler for Keycode: " + e.getCode());
+		}
+	}
+	
+	protected static abstract class GO<X> {
+		public int x, y;
+		public boolean visible = true;
+		public Consumer<X> animation_block;
+		public Shape shape;
+
+		protected GO() {
+			GRAPHICAL_OBJECTS.add(this);
+		}
+
+		protected GO(int x, int y, boolean visible, Consumer<X> animblock) {
+			this.x = x;
+			this.y = y;
+			this.visible = visible;
+			this.animation_block = animblock;
+			GRAPHICAL_OBJECTS.add(this);
+		}
+
+		@SuppressWarnings("unchecked")
+		public void animate() {
+			if (animation_block != null) {
+				animation_block.accept((X) this);
+			}
+		}
+
+		public abstract void render(GraphicsContext gc);
+
+		public <Y extends GO<?>> boolean touches(Y other) {
+			if (other != null && other.shape != null && this.shape != null && this.visible && other.visible) {
+				return Shape.intersect(this.shape, other.shape).getBoundsInLocal().getWidth() != -1;
+			} else
+				return false;
+		}
+
+		public <Y extends GO<?>> boolean touches(Y[] other) {
+			if (other != null) {
+				return Arrays.asList(other).stream().anyMatch(this::touches);
+			}
+			return false;
+
+		}
+	}
+
+	protected static final class Rectangle extends GO<Rectangle> {
+		public int height, width;
+
+		public Rectangle() {
+			super();
+		}
+
+		public Rectangle(int x, int y, boolean visible, Consumer<Rectangle> animblock, int height, int width) {
+			super(x, y, visible, animblock);
+			this.height = height;
+			this.width = width;
+		}
+
+		@Override
+		public void render(GraphicsContext gc) {
+			if (this.visible) {
+				gc.setFill(Color.GREEN);
+				gc.fillRect(x, y, width, height);
+				super.shape = new javafx.scene.shape.Rectangle(x, y, width, height);
+			}
+			animate();
+		}
+	}
+
+	protected static final class Circle extends GO<Circle> {
+		public int radius;
+
+		public Circle() {
+			super();
+		}
+
+		public Circle(int x, int y, boolean visible, Consumer<Circle> animblock, int radius) {
+			super(x, y, visible, animblock);
+			this.radius = radius;
+		}
+
+		@Override
+		public void render(GraphicsContext gc) {
+			if (this.visible) {
+				gc.setFill(Color.WHITE);
+				gc.fillOval(x - radius / 2, y - radius / 2, radius, radius);
+				super.shape = new javafx.scene.shape.Circle(x, y, radius);
+			}
+			animate();
+		}
+	}
+
+	protected static final class Triangle extends GO<Triangle> {
+		public Triangle() {
+			super();
+		}
+
+		public int height, width;
+
+		public Triangle(int x, int y, boolean visible, Consumer<Triangle> animblock, int height, int width) {
+			super(x, y, visible, animblock);
+			this.height = height;
+			this.width = width;
+		}
+
+		@Override
+		public void render(GraphicsContext gc) {
+			if (this.visible) {
+				gc.setFill(Color.RED);
+				double a[] = { x - width / 2, x + width / 2, x };
+				double b[] = { y - height / 2, y - height / 2, y + height / 2 };
+				gc.fillPolygon(a, b, 3);
+				super.shape = new javafx.scene.shape.Polygon(a[0], b[0], a[1], b[1], a[2], b[2]);
+			}
+			animate();
+		}
+	}
+}
+'''
+
+	private def dispatch generate(Prog it) '''
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.scene.Scene;
@@ -61,388 +240,217 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.stage.Stage;
 import javafx.util.Duration;
-	public class «getName» extends wurstwasser.Game {
-		@SuppressWarnings("rawtypes")
-		public static final Set<GO> GRAPHICAL_OBJECTS= new HashSet<«getName».GO>();
-		
-		«attributeList.renderConstructor(Types.Game)»
-		«FOR it: declarations»
-		«generate»
-		«ENDFOR»	
-		«renderStaticJavaFXCode»
-		public void init(){
-			«stateMent.generate»
-		}	
-		«FOR it: block»
-				«generate»
-				«ENDFOR»
-	«generateGrphicalObjects(getName)»
-	}
+ 
+/**
+ * Generated mini game «getName»  
+ * @author Benedikt Maus 170420
+ * @author David Hüttner 161633
+ * @author Hendrik Grewe 137826
+ * @generated on «LocalDateTime.now» by «MgplGenerator.name»
+ */
+public class «getName» extends prototype.Game {
+	«attributeList.renderConstructor(Types.Game)»
+	«FOR it : declarations»
+	«generate»
+	«ENDFOR»	
+	«getName.renderStaticJavaFXCode»
+	public void init(){
+		«stateMent.generate»
+	}	
+	«FOR it : block»
+			«generate»
+			«ENDFOR»
+}
 '''
 
-private def dispatch generate(Animblock it)'''
-	private void «name»(«animParam.type.toFirstUpper» «animParam.name»){
+	private def dispatch generate(Animblock it) '''
+	
+	private void «name»(«animParam.type.toFirstUpper» «animParam.name») {
 		«stmt.generate»
 	}
-'''
+	'''
 
-private def dispatch generate(Eventblock it)'''
-	protected void on_«key»(){
+	private def dispatch generate(Eventblock it) '''
+	
+	protected void on_«key»() {
 		«stmt.generate»
 	}
-'''
+	'''
 
-private def renderStaticJavaFXCode()'''
+	private def renderStaticJavaFXCode(String gameName) '''
+
 public static void main(String[] args) {
  		launch(args);
- 	}
+ }
  
- 	@Override
- 	public void start(Stage stage) throws Exception {
- 		stage.setResizable(false);
- 		init();
- 		Canvas canvas = new Canvas(width, height);
- 		GraphicsContext gc = canvas.getGraphicsContext2D();
- 		if (speed < 1)
- 			speed = 1;
- 		else if (speed > 100)
- 			speed = 100;
- 		Timeline tl = new Timeline(new KeyFrame(Duration.millis(500 / speed), e -> run(gc)));
- 		tl.setCycleCount(Timeline.INDEFINITE);
- 		stage.setX(x);
- 		stage.setY(y);
- 		final Scene scene = new Scene(new StackPane(canvas));
- 		scene.setOnKeyPressed(e -> {
- 		 			switch (e.getCode()) {
- 		 			case LEFT:
- 		 				on_leftarrow();
- 		 				break;
- 		 			case RIGHT:
- 		 				on_rightarrow();
- 		 				break;
- 		 			case UP:
- 		 				on_uparrow();
- 		 				break;
- 		 			case DOWN:
- 		 				on_downarrow();
- 		 				break;
- 		 			case SPACE:
- 		 				on_space();
- 		 				break;
- 		 			default:
- 		 				System.out.println("No Handler for Keycode: " + e.getCode());
- 		 			}
- 		 		});
- 		stage.setScene(scene);
- 		stage.show();
- 		tl.play();
- 	}
+@Override
+public void start(Stage stage) throws Exception {
+	stage.setResizable(false);
+	stage.setTitle("«gameName» from MGPL");
+	init();
+	Canvas canvas = new Canvas(width, height);
+	GraphicsContext gc = canvas.getGraphicsContext2D();
+	if (speed < 1)
+		speed = 1;
+	else if (speed > 100)
+		speed = 100;
+	Timeline tl = new Timeline(new KeyFrame(Duration.millis(500 / speed), e -> run(gc)));
+	tl.setCycleCount(Timeline.INDEFINITE);
+	stage.setX(x);
+	stage.setY(y);
+	final Scene scene = new Scene(new StackPane(canvas));
+	scene.setOnKeyPressed(this::handleKeyEvent);
+	stage.setScene(scene);
+	stage.show();
+	tl.play();
+}
  
- 	private void run(GraphicsContext gc) {
- 		gc.setFill(Color.BLACK);
- 		gc.fillRect(0, 0, width, height);
- 		gc.setFill(Color.WHITE);
- 		gc.setFont(Font.font(25));
- 		for (GO go : GRAPHICAL_OBJECTS) {
- 			go.render(gc);
- 		}
- 	}
- '''
-
-private def String getName(Identifiable it){
-	switch it{
-		Prog :'''«name.toFirstUpper»'''
-		Vardecl :'''«name»'''
-		Objedecl :'''«name»'''
-		Animblock :'''(o)->{«name»(o);}'''
-		AnimParam :'''«name»'''
-		default: throw new IllegalStateException(class.simpleName)
+private void run(GraphicsContext gc) {
+	gc.setFill(Color.BLACK);
+	gc.fillRect(0, 0, width, height);
+	gc.setFill(Color.WHITE);
+	gc.setFont(Font.font(25));
+	for (GO<?> go : GRAPHICAL_OBJECTS) {
+		go.render(gc);
 	}
 }
-	private def dispatch generate(Stmtblock it)'''
+ '''
+
+	private def String getName(Identifiable it) {
+		switch it {
+			Prog: '''«name.toFirstUpper»'''
+			Vardecl: '''«name»'''
+			Objedecl: '''«name»'''
+			Animblock: '''this::«name»'''
+			AnimParam: '''«name»'''
+			default:
+				throw new IllegalStateException(class.simpleName)
+		}
+	}
+
+	private def dispatch generate(Stmtblock it) '''
 		«FOR stmt : statements»
-			«stmt.generate»;
+			«stmt.generate»
 		«ENDFOR»
 	'''
-	
-	private def dispatch generate(Ifstmt it)'''
-		if(«expr.generate»){
+
+	private def dispatch generate(Ifstmt it) '''
+		if («expr.generate») {
 			«thenstmt.generate»
-		}«IF ^else»
-		else{
+		}«IF ^else» else {
 			«elsestmt.generate»
 		}
 		«ENDIF»
 	'''
-	
-	private def dispatch generate(Forstmt it)'''
-		for(«init.generate»;«expr.generate»;«ass.generate»){
+
+	private def dispatch generate(Forstmt it) '''
+		for («init.generate» «expr.generate»; «ass.generate.toString.replace(';','')») {
 			«stmt.generate»
 		}
 	'''
-	private def renderBez(String it){
-		switch it{
-			case "w": "width" 
+
+	private def renderBez(String it) {
+		switch it {
+			case "w": "width"
 			case "h": "height"
 			case "r": "radius"
-			default :it
-		}		
+			default: it
+		}
 	}
-	private def dispatch generate(Var it)'''
-		«name.name»
-		«IF assignment!=null»
-			«IF assignment.array»
-				[«assignment.expr.generate»]
-				«IF assignment.assignment!=null»
-					.«assignment.assignment.bez.renderBez»
-				«ENDIF»
-			«ELSE»
-				.«assignment.bez.renderBez»
-			«ENDIF»
-		«ENDIF»
-	'''
-	
-	private def dispatch generate(Assstmt it)'''
-		«^var.generate» = «expr.generate» «IF  (^var.generate.toString).contains('visible')» !=0«ENDIF»
+
+	private def dispatch generate(
+		Var it) '''«name.name»«IF assignment!=null»«IF assignment.array»[«assignment.expr.generate»]«IF assignment.assignment!=null».«assignment.assignment.bez.renderBez»«ENDIF»«ELSE».«assignment.bez.renderBez»«ENDIF»«ENDIF»'''
+
+	private def dispatch generate(
+		Assstmt it) '''«^var.generate» = «expr.generate»«IF (^var.generate.toString).contains('.visible')» < 0 || «expr.generate» > 0«ENDIF»;'''
+
+	private def dispatch generate(Vardecl it) '''
+«val position =decl.position»
+«val init=decl.init»
+«IF decl.array»int[] «name» = new int[«position»];
+«ELSE»
+private int «name»«IF init!=null» = «generate(init.expr)»«ENDIF»;
+«ENDIF»
 	'''
 
-	private def dispatch generate(Vardecl it) {
-	'''
-			«val position =decl.position»
-			«val init=decl.init»
-			
-			«IF decl.array»int[] «name» = new int[«position»];
-			«ELSE»
-				int «name»«IF init!=null» = «generate(init.expr)»«ENDIF»;
-			«ENDIF»
-		'''
-
-	}
-	private def renderObjectArray(String type,int count){
-		var String text="{"
+	private def renderObjectArray(String type, int count) {
+		var String text = "{"
 		for (var i = 0; i < count; i++) {
 			if(i > 0) text += ","
 			text += "new " + type + "()"
 		}
-		text+="}"
+		text += "}"
 	}
-	private def  dispatch generate(Objedecl it) 
-'''
-	 «IF decl.attrs==null»
-	 	«type.toFirstUpper»[] «name» = «type.toFirstUpper.renderObjectArray(decl.position)»;
-	 «ELSE»
-	 	«type.toFirstUpper» «name» = new «type.toFirstUpper»(«decl.attrs.renderConstructor(Enum.valueOf(Types, type.toFirstUpper))»);
-	 «ENDIF»
-'''
 
-private  def String renderConstructor(Attrasslist attrasslist, Types flag){
-	var String width="0"
-	var String height="0"
-	var String x="0"
-	var String y="0"
-	var String radius="0"
-	var String visible="true"
-	var String animationBlock="null"
-	var String speed="50"
-	
-	for(attr : attrasslist.attr){
-		switch attr.name{
-			case "width",
-			case "w":width=generate(attr.expr).toString
-			case "height",
-			case "h":height=generate(attr.expr).toString
-			case "x":x=generate(attr.expr).toString
-			case "y": y=generate(attr.expr).toString
-			case "r",
-			case "radius":radius=generate(attr.expr).toString
-			case "visible": visible= "("+generate(attr.expr) +"!=0)"
-			case "animation_block": animationBlock= attr.expr.generate.toString
-						case "speed": speed= attr.expr.generate.toString
-			default : throw new IllegalStateException("badumtss")
-			}
-	}
-	switch flag{
-		case Circle:'''«x»,«y»,«visible»,«animationBlock»,«radius»'''
-		case Triangle:'''«x»,«y»,«visible»,«animationBlock»,«height»,«width»'''
-		case Rectangle:'''«x»,«y»,«visible»,«animationBlock»,«height»,«width»'''
-		case Game:'''
-		public static int x=«x»;
-		
-		public static int y=«y»;
-		public static int width=«width»;
-		public static int height=«height»;
-		public static int speed=«speed»;
-		
-		'''
-		default: throw new IllegalStateException("WRONG TYPE")
-	}
-}	
-
-
-
-private def dispatch generate(Expr it) '''
-		«generate(op)»
-		«IF ops?.head!=null»
-			||«FOR it: ops SEPARATOR "||"» «generate(it)»«ENDFOR» 
+	private def dispatch generate(Objedecl it) '''
+		«IF decl.attrs==null»
+			private «type.toFirstUpper»[] «name» = «type.toFirstUpper.renderObjectArray(decl.position)»;
+		«ELSE»
+			private «type.toFirstUpper» «name» = new «type.toFirstUpper»(«decl.attrs.renderConstructor(Enum.valueOf(Types, type.toFirstUpper))»);
 		«ENDIF»
 	'''
 
-private def
+	private def String renderConstructor(Attrasslist attrasslist, Types flag) {
+		var String width = "0"
+		var String height = "0"
+		var String x = "0"
+		var String y = "0"
+		var String radius = "0"
+		var String visible = "true"
+		var String animationBlock = "null"
+		var String speed = "50"
 
-dispatch generate(KonOp it) '''
-		«generate(op)»
-		«IF ops?.head!=null»
-			&&«FOR it: ops SEPARATOR "&&"» «generate(it)»«ENDFOR» 
-		«ENDIF»
-	'''
-
-private def
-
-dispatch generate(RelOp it) '''
-		«generate(exp)»
-		«IF equalExpr?.head!=null»
-			==«FOR it: equalExpr SEPARATOR "=="» «generate(it)»«ENDFOR» 
-		«ENDIF»
-		«IF lethenExpr?.head!=null»
-			<=«FOR it: lethenExpr SEPARATOR "<="» «generate(it)»«ENDFOR» 
-		«ENDIF»
-		«IF lthenExpr?.head!=null»
-			<«FOR it: lthenExpr SEPARATOR "<"» «generate(it)»«ENDFOR» 
-		«ENDIF»
-	'''
-
-private def
-
-dispatch generate(AddExpr it) '''
-		«generate(exp)»
-		«IF summand?.head!=null»
-			+ «FOR it: summand SEPARATOR "+"» «generate(it)»«ENDFOR» 
-				«ENDIF»
-				«IF subtrahend?.head!=null»
-			- «FOR it: subtrahend SEPARATOR "-"» «generate(it)»«ENDFOR» 
-				«ENDIF»
-	'''
-
-private def
-
-dispatch generate(MulExpr it) '''
-		«generate(exp)»
-		«IF factor?.head!=null»
-			* «FOR it: factor SEPARATOR "*"» «generate(it)»«ENDFOR» 
-				«ENDIF»
-				«IF dividend?.head!=null»
-			/ «FOR it: dividend SEPARATOR "-"» «generate(it)»«ENDFOR» 
-				«ENDIF»
-	'''
-
-private def
-
-dispatch generate(UnExpr it) '''
-	«IF minus»-
-	«ELSEIF not»!
-	«ENDIF»«generate(exp)»
-	'''
-
-private def
-
-dispatch generate(MyExp it) '''
-	«IF var1 != null»
-		«IF touches»«var1.name.name».touches(«var2.name.name»)
-			«ELSE» «var1.generate»
-		«ENDIF»
-	«ELSEIF expr!=null»
-	(«generate(expr)»)
-	«ELSE»«num»
-	«ENDIF»
-	'''
-
-private def String generateGrphicalObjects(String gameName) '''
-	private static abstract class GO <X>{
-		GO() {
-			«gameName».GRAPHICAL_OBJECTS.add(this);
-			}
-			protected GO(int x, int y, boolean visible, Consumer<X> animblock) {
-				this.x = x;
-				this.y = y;
-				this.visible = visible;
-				this.animation_block = animblock;
-				«gameName».GRAPHICAL_OBJECTS.add(this);
-			}
-	
-			int x, y;
-			boolean visible=true;
-			Consumer<X> animation_block;
-	
-			public void animate() {
-				if (animation_block != null) {
-					animation_block.accept((X) this);
-				}
-			}
-			public abstract void render(GraphicsContext gc);
-			
-			public abstract <Y extends GO> boolean touches(Y other) ;
-			
-			public abstract <Y extends GO> boolean touches(Y[] other);
-		}
-	
-		private static final class Rectangle extends GO<Rectangle> {
-			int height, width;
-				protected Rectangle() {
-						super();
-					}
-			protected Rectangle(int x, int y, boolean visible, Consumer<Rectangle> animblock,int height,int width){
-				super(x,y,visible,animblock);
-				this.height=height;
-				this.width=width;
-			}
-			@Override
-			public void render(GraphicsContext gc) {
-				if (this.visible) {
-			 		gc.setFill(Color.GREEN);
-			 		gc.fillRect(x, y, width, height);
-			 	}
-			 	animate();
+		for (attr : attrasslist.attr) {
+			switch attr.name {
+				case "width",
+				case "w": width = generate(attr.expr).toString
+				case "height",
+				case "h": height = generate(attr.expr).toString
+				case "x": x = generate(attr.expr).toString
+				case "y": y = generate(attr.expr).toString
+				case "r",
+				case "radius": radius = generate(attr.expr).toString
+				case "visible": visible = "(" + generate(attr.expr) + "!=0)"
+				case "animation_block": animationBlock = attr.expr.generate.toString
+				case "speed": speed = attr.expr.generate.toString
+				default: throw new IllegalStateException("badumtss")
 			}
 		}
-			
-		private static final class Circle extends GO<Circle> {
-			int radius;
-			protected Circle() {
-						super();
-					}
-			protected Circle(int x, int y, boolean visible, Consumer<Circle> animblock,int radius){
-			super(x,y,visible,animblock);
-			this.radius=radius;
-			}
-			@Override
-			public void render(GraphicsContext gc) {
-				if (this.visible) {
-					gc.setFill(Color.WHITE);
-					gc.fillOval(x, y, radius, radius);
-				}
-				animate();
-			}
+		switch flag {
+			case Circle: '''«x»,«y»,«visible»,«animationBlock»,«radius»'''
+			case Triangle: '''«x»,«y»,«visible»,«animationBlock»,«height»,«width»'''
+			case Rectangle: '''«x»,«y»,«visible»,«animationBlock»,«height»,«width»'''
+			case Game: '''
+				private static int x = «x»;
+				private static int y = «y»;
+				private static int width = «width»;
+				private static int height = «height»;
+				private static int speed = «speed»;
+				
+			'''
+			default:
+				throw new IllegalStateException("WRONG TYPE")
 		}
-			private static final class Triangle extends GO<Triangle> {
-				protected Triangle() {
-							super();
-						}
-				int height, width;
-					protected Triangle(int x, int y, boolean visible, Consumer<Triangle> animblock,int height,int width){
-					super(x,y,visible,animblock);
-					this.height=height;
-					this.width=width;
-					}
-				@Override
-				public void render(GraphicsContext gc) {
-					if (this.visible) {
-						gc.setFill(Color.RED);
-					 	double a[]={x-width/2,x+width/2,x};
-					 	double b[]={y-height/2,y-height/2,y+height/2};
-					 	gc.fillPolygon(a,b,3);
-					 	}
-					animate();
-				}
-			}
-		'''
+	}
+
+	private def dispatch generate(
+		Expr it) '''«generate(op)»«IF ops?.head!=null» || «FOR it: ops SEPARATOR " || "»«generate(it)»«ENDFOR»«ENDIF»'''
+
+	private def dispatch generate(
+		KonOp it) '''«generate(op)»«IF ops?.head!=null» && «FOR it: ops SEPARATOR " && "»«generate(it)»«ENDFOR»«ENDIF»'''
+
+	private def dispatch generate(
+		RelOp it) '''«generate(exp)»«IF equalExpr?.head!=null» == «FOR it: equalExpr SEPARATOR " == "»«generate(it)»«ENDFOR»«ENDIF»«IF lethenExpr?.head!=null» <= «FOR it: lethenExpr SEPARATOR " <= "»«generate(it)»«ENDFOR»«ENDIF»«IF lthenExpr?.head!=null» < «FOR it: lthenExpr SEPARATOR " < "»«generate(it)»«ENDFOR»«ENDIF»'''
+
+	private def dispatch generate(
+		AddExpr it) '''«generate(exp)»«IF summand?.head!=null» + «FOR it: summand SEPARATOR " + "»«generate(it)»«ENDFOR»«ENDIF»«IF subtrahend?.head!=null» - «FOR it: subtrahend SEPARATOR "-"»«generate(it)»«ENDFOR»«ENDIF»'''
+
+	private def dispatch generate(
+		MulExpr it) '''«generate(exp)»«IF factor?.head!=null» * «FOR it: factor SEPARATOR " * "»«generate(it)»«ENDFOR»«ENDIF»«IF dividend?.head!=null» / «FOR it: dividend SEPARATOR " / "»«generate(it)»«ENDFOR» 
+				«ENDIF»'''
+
+	private def dispatch generate(UnExpr it) '''«IF minus»-«ELSEIF not»!«ENDIF»«generate(exp)»'''
+
+	private def dispatch generate(
+		MyExp it) '''«IF var1 != null»«IF touches»«var1.name.name».touches(«var2.name.name»)«ELSE»«var1.generate»«ENDIF»«ELSEIF expr!=null»(«generate(expr)»)«ELSE»«num»«ENDIF»'''
 }
