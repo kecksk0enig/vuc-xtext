@@ -45,117 +45,38 @@ class MgplGenerator extends AbstractGenerator {
 		fsa.generateFile(gameName + ".java", prog.generate)
 	}
 
-	private def game(String gameName) '''
-import java.util.function.Function;
-import java.util.Random;
+
+private def dispatch generate(Prog it)'''
+import java.util.function.Consumer;
+import java.util.HashSet;
+import java.util.Set;
+
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
-import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
-import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import javafx.util.Duration;
-
-public class «gameName» extends Application {
-	private static final int width = 800;
-	private static final int height = 600;
-	private static final int PLAYER_HEIGHT = 100;
-	private static final int PLAYER_WIDTH = 15;
-	private static final double BALL_R = 15;
-	private int ballYSpeed = 1;
-	private int ballXSpeed = 1;
-	private double playerOneYPos = height / 2;
-	private double playerTwoYPos = height / 2;
-	private double ballXPos = width / 2;
-	private double ballYPos = height / 2;
-	private int scoreP1 = 0;
-	private int scoreP2 = 0;
-	private boolean gameStarted;
-	private int playerOneXPos = 0;
-	private double playerTwoXPos = width - PLAYER_WIDTH;
-
-	public static void main(String... args){
-		launch(args);
-	}
-
-	public void start(Stage stage) throws Exception {
-		Canvas canvas = new Canvas(width, height);
-		GraphicsContext gc = canvas.getGraphicsContext2D();
-		Timeline tl = new Timeline(new KeyFrame(Duration.millis(10), e -> run(gc)));
-		tl.setCycleCount(Timeline.INDEFINITE);
-		canvas.setOnMouseMoved(e ->  playerOneYPos  = e.getY());
-		canvas.setOnMouseClicked(e ->  gameStarted = true);
-		stage.setScene(new Scene(new StackPane(canvas)));
-		stage.show();
-		tl.play();
-	}
-
-	private void run(GraphicsContext gc) {
-		gc.setFill(Color.BLACK);
-		gc.fillRect(0, 0, width, height);
-		gc.setFill(Color.WHITE);
-		gc.setFont(Font.font(25));
-		if(gameStarted) {
-			ballXPos+=ballXSpeed;
-			ballYPos+=ballYSpeed;
-			if(ballXPos < width - width  / 4) {
-				playerTwoYPos = ballYPos - PLAYER_HEIGHT / 2;
-			}  else {
-				playerTwoYPos =  ballYPos > playerTwoYPos + PLAYER_HEIGHT / 2 ?playerTwoYPos += 1: playerTwoYPos - 1;
-			}
-			gc.fillOval(ballXPos, ballYPos, BALL_R, BALL_R);
-		} else {
-			gc.setStroke(Color.YELLOW);
-			gc.setTextAlign(TextAlignment.CENTER);
-			gc.strokeText("Click to Start", width / 2, height / 2);
-			ballXPos = width / 2;
-			ballYPos = height / 2;
-			ballXSpeed = new Random().nextInt(2) == 0 ? 1: -1;
-			ballYSpeed = new Random().nextInt(2) == 0 ? 1: -1;
-		}
-		if(ballYPos > height || ballYPos < 0) ballYSpeed *=-1;
-		if(ballXPos < playerOneXPos - PLAYER_WIDTH) {
-			scoreP2++;
-			gameStarted = false;
-		}
-		if(ballXPos > playerTwoXPos + PLAYER_WIDTH) {  
-			scoreP1++;
-			gameStarted = false;
-		}
-		if( ((ballXPos + BALL_R > playerTwoXPos) && ballYPos >= playerTwoYPos && ballYPos <= playerTwoYPos + PLAYER_HEIGHT) || 
-			((ballXPos < playerOneXPos + PLAYER_WIDTH) && ballYPos >= playerOneYPos && ballYPos <= playerOneYPos + PLAYER_HEIGHT)) {
-			ballYSpeed += 1 * Math.signum(ballYSpeed);
-			ballXSpeed += 1 * Math.signum(ballXSpeed);
-			ballXSpeed *= -1;
-			ballYSpeed *= -1;
-		}
-		gc.fillText(scoreP1 + "\t\t\t\t\t\t\t\t" + scoreP2, width / 2, 100);
-		gc.fillRect(playerTwoXPos, playerTwoYPos, PLAYER_WIDTH, PLAYER_HEIGHT);
-		gc.fillRect(playerOneXPos, playerOneYPos, PLAYER_WIDTH, PLAYER_HEIGHT);
-	}
-
-
-'''
-
-private def dispatch generate(Prog it)'''
-import java.util.function.Consumer;
-	public class «getName(it)»{
+	public class «getName» extends wurstwasser.Game {
+		@SuppressWarnings("rawtypes")
+		public static final Set<GO> GRAPHICAL_OBJECTS= new HashSet<«getName».GO>();
+		
 		«attributeList.renderConstructor(Types.Game)»
 		«FOR it: declarations»
 		«generate»
 		«ENDFOR»	
+		«renderStaticJavaFXCode»
 		public void init(){
 			«stateMent.generate»
 		}	
 		«FOR it: block»
 				«generate»
 				«ENDFOR»
-	«generateGrphicalObjects»
+	«generateGrphicalObjects(getName)»
 	}
 '''
 
@@ -166,10 +87,67 @@ private def dispatch generate(Animblock it)'''
 '''
 
 private def dispatch generate(Eventblock it)'''
-	private void on_«key»(){
+	protected void on_«key»(){
 		«stmt.generate»
 	}
 '''
+
+private def renderStaticJavaFXCode()'''
+public static void main(String[] args) {
+ 		launch(args);
+ 	}
+ 
+ 	@Override
+ 	public void start(Stage stage) throws Exception {
+ 		stage.setResizable(false);
+ 		init();
+ 		Canvas canvas = new Canvas(width, height);
+ 		GraphicsContext gc = canvas.getGraphicsContext2D();
+ 		if (speed < 1)
+ 			speed = 1;
+ 		else if (speed > 100)
+ 			speed = 100;
+ 		Timeline tl = new Timeline(new KeyFrame(Duration.millis(500 / speed), e -> run(gc)));
+ 		tl.setCycleCount(Timeline.INDEFINITE);
+ 		stage.setX(x);
+ 		stage.setY(y);
+ 		final Scene scene = new Scene(new StackPane(canvas));
+ 		scene.setOnKeyPressed(e -> {
+ 		 			switch (e.getCode()) {
+ 		 			case LEFT:
+ 		 				on_leftarrow();
+ 		 				break;
+ 		 			case RIGHT:
+ 		 				on_rightarrow();
+ 		 				break;
+ 		 			case UP:
+ 		 				on_uparrow();
+ 		 				break;
+ 		 			case DOWN:
+ 		 				on_downarrow();
+ 		 				break;
+ 		 			case SPACE:
+ 		 				on_space();
+ 		 				break;
+ 		 			default:
+ 		 				System.out.println("No Handler for Keycode: " + e.getCode());
+ 		 			}
+ 		 		});
+ 		stage.setScene(scene);
+ 		stage.show();
+ 		tl.play();
+ 	}
+ 
+ 	private void run(GraphicsContext gc) {
+ 		gc.setFill(Color.BLACK);
+ 		gc.fillRect(0, 0, width, height);
+ 		gc.setFill(Color.WHITE);
+ 		gc.setFont(Font.font(25));
+ 		for (GO go : GRAPHICAL_OBJECTS) {
+ 			go.render(gc);
+ 		}
+ 	}
+ '''
 
 private def String getName(Identifiable it){
 	switch it{
@@ -202,17 +180,24 @@ private def String getName(Identifiable it){
 			«stmt.generate»
 		}
 	'''
-	
+	private def renderBez(String it){
+		switch it{
+			case "w": "width" 
+			case "h": "height"
+			case "r": "radius"
+			default :it
+		}		
+	}
 	private def dispatch generate(Var it)'''
 		«name.name»
 		«IF assignment!=null»
 			«IF assignment.array»
 				[«assignment.expr.generate»]
 				«IF assignment.assignment!=null»
-					.«assignment.assignment.bez»
+					.«assignment.assignment.bez.renderBez»
 				«ENDIF»
 			«ELSE»
-				.«assignment.bez»
+				.«assignment.bez.renderBez»
 			«ENDIF»
 		«ENDIF»
 	'''
@@ -233,11 +218,18 @@ private def String getName(Identifiable it){
 		'''
 
 	}
-
+	private def renderObjectArray(String type,int count){
+		var String text="{"
+		for (var i = 0; i < count; i++) {
+			if(i > 0) text += ","
+			text += "new " + type + "()"
+		}
+		text+="}"
+	}
 	private def  dispatch generate(Objedecl it) 
 '''
 	 «IF decl.attrs==null»
-	 	«type.toFirstUpper»[] «name» = new «type.toFirstUpper»[«decl.position»];
+	 	«type.toFirstUpper»[] «name» = «type.toFirstUpper.renderObjectArray(decl.position)»;
 	 «ELSE»
 	 	«type.toFirstUpper» «name» = new «type.toFirstUpper»(«decl.attrs.renderConstructor(Enum.valueOf(Types, type.toFirstUpper))»);
 	 «ENDIF»
@@ -264,8 +256,8 @@ private  def String renderConstructor(Attrasslist attrasslist, Types flag){
 			case "r",
 			case "radius":radius=generate(attr.expr).toString
 			case "visible": visible= "("+generate(attr.expr) +"!=0)"
-			case "animation_block": animationBlock= '(o)->{'+attr.expr.generate.toString+'(o);}'
-			case "speed": speed= attr.expr.generate.toString
+			case "animation_block": animationBlock= attr.expr.generate.toString
+						case "speed": speed= attr.expr.generate.toString
 			default : throw new IllegalStateException("badumtss")
 			}
 	}
@@ -280,8 +272,6 @@ private  def String renderConstructor(Attrasslist attrasslist, Types flag){
 		public static int width=«width»;
 		public static int height=«height»;
 		public static int speed=«speed»;
-		public static int w=width;
-		public static int h=height;
 		
 		'''
 		default: throw new IllegalStateException("WRONG TYPE")
@@ -366,59 +356,93 @@ dispatch generate(MyExp it) '''
 	«ENDIF»
 	'''
 
-private def String generateGrphicalObjects() '''
+private def String generateGrphicalObjects(String gameName) '''
 	private static abstract class GO <X>{
-	
+		GO() {
+			«gameName».GRAPHICAL_OBJECTS.add(this);
+			}
 			protected GO(int x, int y, boolean visible, Consumer<X> animblock) {
 				this.x = x;
 				this.y = y;
 				this.visible = visible;
 				this.animation_block = animblock;
+				«gameName».GRAPHICAL_OBJECTS.add(this);
 			}
 	
 			int x, y;
-			boolean visible;
+			boolean visible=true;
 			Consumer<X> animation_block;
 	
-			public <Y extends GO> boolean touches(Y other) {
-				return false;
+			public void animate() {
+				if (animation_block != null) {
+					animation_block.accept((X) this);
+				}
 			}
-			public <Y extends GO> boolean touches(Y[] other) {
-							return false;
-						}
-			public void animate(){
-				animation_block.accept((X) this);
-			}
+			public abstract void render(GraphicsContext gc);
+			
+			public abstract <Y extends GO> boolean touches(Y other) ;
+			
+			public abstract <Y extends GO> boolean touches(Y[] other);
 		}
 	
 		private static final class Rectangle extends GO<Rectangle> {
-			int height, width,h,w;
+			int height, width;
+				protected Rectangle() {
+						super();
+					}
 			protected Rectangle(int x, int y, boolean visible, Consumer<Rectangle> animblock,int height,int width){
 				super(x,y,visible,animblock);
 				this.height=height;
 				this.width=width;
-				h=height;
-				w=width;
+			}
+			@Override
+			public void render(GraphicsContext gc) {
+				if (this.visible) {
+			 		gc.setFill(Color.GREEN);
+			 		gc.fillRect(x, y, width, height);
+			 	}
+			 	animate();
 			}
 		}
 			
 		private static final class Circle extends GO<Circle> {
-			int radius,r;
+			int radius;
+			protected Circle() {
+						super();
+					}
 			protected Circle(int x, int y, boolean visible, Consumer<Circle> animblock,int radius){
 			super(x,y,visible,animblock);
 			this.radius=radius;
-			r=radius;
+			}
+			@Override
+			public void render(GraphicsContext gc) {
+				if (this.visible) {
+					gc.setFill(Color.WHITE);
+					gc.fillOval(x, y, radius, radius);
+				}
+				animate();
 			}
 		}
 			private static final class Triangle extends GO<Triangle> {
-				int height, width,h,w;
+				protected Triangle() {
+							super();
+						}
+				int height, width;
 					protected Triangle(int x, int y, boolean visible, Consumer<Triangle> animblock,int height,int width){
 					super(x,y,visible,animblock);
 					this.height=height;
 					this.width=width;
-					h=height;
-					w=width;
 					}
+				@Override
+				public void render(GraphicsContext gc) {
+					if (this.visible) {
+						gc.setFill(Color.RED);
+					 	double a[]={x-width/2,x+width/2,x};
+					 	double b[]={y-height/2,y-height/2,y+height/2};
+					 	gc.fillPolygon(a,b,3);
+					 	}
+					animate();
 				}
+			}
 		'''
 }
